@@ -19,6 +19,7 @@ class SafetyDepositBoxServiceTest {
 	@AfterEach
 	void wipe() throws Exception {
 		sdbService.getSafetyDepositBoxes().clear();
+		sdbService.setWaiting(false);
 	}
 
 	// Test to confirm that only one instance can exist
@@ -95,6 +96,10 @@ class SafetyDepositBoxServiceTest {
 
 		assertEquals(frequencies[0], 0);
 		assertEquals(frequencies[1], 2);
+		
+		// Assert that no thread waited for an available Box
+		assertEquals(sdbService.isWaiting(), false);
+
 
 	}
 
@@ -157,6 +162,9 @@ class SafetyDepositBoxServiceTest {
 		assertEquals(frequencies[0], 0);
 		assertEquals(frequencies[1], 1);
 		assertEquals(frequencies[2], 1);
+		
+		// Assert that at least one thread waited for an available Box
+		assertEquals(sdbService.isWaiting(), true);
 
 	}
 
@@ -319,6 +327,9 @@ class SafetyDepositBoxServiceTest {
 		}
 
 		assertEquals(totalUsage, expectedTotalUsage);
+		
+		// Assert that at least one thread waited for an available Box
+		assertEquals(sdbService.isWaiting(), true);
 
 	}
 	
@@ -393,6 +404,98 @@ class SafetyDepositBoxServiceTest {
 		assertEquals(frequencies[0], 0);
 		assertEquals(frequencies[1], 0);
 		assertEquals(frequencies[2], 2);
+		
+		// Assert that at least one thread waited for an available Box
+		assertEquals(sdbService.isWaiting(), true);
+
+	}
+	
+	@Test
+	void testTwoSafetyDepositBoxesAllocatedAtTheSameTime_ThenTwoMoreAllocatedAfterBeingReleased_NoWaitingRequired()
+			throws InterruptedException {
+		// Arrange
+		Thread thread1 = new Thread(() -> {
+			SafetyDepositBox sdb1 = sdbService.allocateSafetyDepositBox();
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+			sdbService.releaseSafetyDepositBox(sdb1);
+		});
+
+		Thread thread2 = new Thread(() -> {
+			SafetyDepositBox sdb2 = sdbService.allocateSafetyDepositBox();
+
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+			sdbService.releaseSafetyDepositBox(sdb2);
+		});
+
+		Thread thread3 = new Thread(() -> {
+			
+			try {
+				Thread.sleep(10000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			SafetyDepositBox sdb3 = sdbService.allocateSafetyDepositBox();
+
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+			sdbService.releaseSafetyDepositBox(sdb3);
+		});
+		Thread thread4 = new Thread(() -> {
+			try {
+				Thread.sleep(10000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			
+			SafetyDepositBox sdb4 = sdbService.allocateSafetyDepositBox();
+
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+
+			sdbService.releaseSafetyDepositBox(sdb4);
+		});
+
+		// Act
+		thread1.start();
+		thread2.start();
+		thread3.start();
+		thread4.start();
+		thread1.join();
+		thread2.join();
+		thread3.join();
+		thread4.join();
+
+		// Assert
+		int[] frequencies = new int[3];
+		int frequency = 0;
+		for (SafetyDepositBox sdb : sdbService.getSafetyDepositBoxes()) {
+			frequency = sdb.getNumTimesUsed();
+			frequencies[frequency]++;
+		}
+
+		assertEquals(frequencies[0], 0);
+		assertEquals(frequencies[1], 0);
+		assertEquals(frequencies[2], 2);
+		
+		// Assert that at least one thread waited for an available Box
+		assertEquals(sdbService.isWaiting(), false);
 
 	}
 

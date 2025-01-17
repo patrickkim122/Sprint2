@@ -8,6 +8,7 @@ public class SafetyDepositBoxService {
 	private static SafetyDepositBoxService safetyDepositBoxService;
 	private List<SafetyDepositBox> safetyDepositBoxes = new ArrayList<>();
 	private static int numberOfSafetyDepositBox;
+	private static boolean isWaiting;
 
 	private SafetyDepositBoxService() {
 	}
@@ -38,6 +39,7 @@ public class SafetyDepositBoxService {
 			box = new SmallSafetyDepositBox(safetyDepositBoxes.size() + 1, 5);
 			safetyDepositBoxes.add(box);
 		} else {
+			setWaiting(true);
 			// Wait for the next Box to be released
 			try {
 				wait();
@@ -68,5 +70,15 @@ public class SafetyDepositBoxService {
 	public synchronized List<SafetyDepositBox> getSafetyDepositBoxes() {
 		return safetyDepositBoxes;
 	}
+
+	public boolean isWaiting() {
+		return isWaiting;
+	}
+
+	public void setWaiting(boolean isWaiting) {
+		SafetyDepositBoxService.isWaiting = isWaiting;
+	}
+	
+	
 
 }
