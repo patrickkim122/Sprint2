@@ -7,8 +7,7 @@ import java.util.Optional;
 public class SafetyDepositBoxService {
 	private static SafetyDepositBoxService safetyDepositBoxService;
 	private List<SafetyDepositBox> safetyDepositBoxes = new ArrayList<>();
-	private int numberOfSafetyDepositBox;
-	private boolean isFalse;
+	private static int numberOfSafetyDepositBox;
 
 	private SafetyDepositBoxService() {
 	}
@@ -20,13 +19,9 @@ public class SafetyDepositBoxService {
 		return safetyDepositBoxService;
 	}
 
-	public void setNumberOfSafetyDepositBoxes(int numberOfSafetyDepositBox) {
-		this.numberOfSafetyDepositBox = numberOfSafetyDepositBox;
-		int i = 0;
-		while (i < numberOfSafetyDepositBox) {
-			SafetyDepositBox safetyDepositBox = new SafetyDepositBox(i);
-			safetyDepositBoxes.add(safetyDepositBox);
-		}
+	public static void setNumberOfSafetyDepositBoxes(int num) {
+		numberOfSafetyDepositBox = num;
+
 	}
 
 	public int getNumberOfSafetyDepositBoxes() {
@@ -34,31 +29,32 @@ public class SafetyDepositBoxService {
 	}
 
 	public synchronized SafetyDepositBox allocateSafetyDepositBox() {
-		// Don't throw Exception; the method needs to wait() until a box is available
-		System.out.println("Allocating");
-		for (SafetyDepositBox box : safetyDepositBoxes) {
-			if (!box.isAllotted()) {
-				box.setAllotted(true);
-				return box;
-			}
-		}
-		Optional<SafetyDepositBox> optionalBox = getReleasedSafetyDepositBox();
-
-		while (!optionalBox.isPresent()) {
+		SafetyDepositBox box;
+		// Look for a Box that has been created and released
+		if (getNumberOfAvailableSafetyDepositBoxes() > 0) {
+			box = getReleasedSafetyDepositBox().get();
+		} else if (safetyDepositBoxes.size() < numberOfSafetyDepositBox) {
+			// Create new Box
+			box = new SmallSafetyDepositBox(safetyDepositBoxes.size() + 1, 5);
+			safetyDepositBoxes.add(box);
+		} else {
+			// Wait for the next Box to be released
 			try {
 				wait();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
-			optionalBox = getReleasedSafetyDepositBox();
+			box = getReleasedSafetyDepositBox().get();
 		}
-		optionalBox.get().setAllotted(true);
-		return optionalBox.get();
+
+		box.setAllotted(true);
+		box.setNumTimesUsed(box.getNumTimesUsed() + 1);
+		return box;
 	}
 
 	public synchronized void releaseSafetyDepositBox(SafetyDepositBox box) {
 		box.setAllotted(false);
-		notifyAll();
+		notify();
 	}
 
 	public synchronized int getNumberOfAvailableSafetyDepositBoxes() {
@@ -73,14 +69,4 @@ public class SafetyDepositBoxService {
 		return safetyDepositBoxes;
 	}
 
-	public boolean isFalse() {
-		return isFalse;
-	}
-
-	public void setFalse(boolean isFalse) {
-		this.isFalse = isFalse;
-	}
-	
-	
-	
 }
